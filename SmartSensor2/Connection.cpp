@@ -1,10 +1,19 @@
+
+// Based on:
+// https://iotdesignpro.com/articles/esp32-data-logging-to-google-sheets-with-google-scripts
+// https://electropeak.com/learn/sending-data-from-esp32-or-esp8266-to-google-sheets-2-methods/
+// https://how2electronics.com/how-to-send-esp32-cam-captured-image-to-google-drive/#google_vignette
+// https://www.niraltek.com/blog/how-to-take-photos-and-upload-it-to-google-drive-using-esp32-cam/
+// https://www.makerhero.com/blog/tire-fotos-com-esp32-cam-e-armazene-no-google-drive/
+
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include "esp_camera.h"
 #include "Base64.h"
 #include "Arduino.h"
-#include "Credentials.h"
+#include "Credentials.h";         // comment this include and
+// #include "yourCredentials.h"; // uncomment this one. 
 
 
 // Dados para conexão com o Google Drive
