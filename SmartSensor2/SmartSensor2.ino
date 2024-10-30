@@ -290,12 +290,12 @@ void loop() {
       sending_failed = true;
       Serial.println("==========");
       sendData(moisture, turn_on, drop_counter);
-      image = takePicture(flash_on = true);
-      sendImage(moisture, image); //Capture and send image
-      image = takePicture(flash_on = true);
-      sendImage(moisture, image); //Capture and send image
-      image = takePicture(flash_on = true);
-      sendImage(moisture, image); //Capture and send image
+      // image = takePicture(flash_on = true);
+      // sendImage(moisture, image); //Capture and send image
+      // image = takePicture(flash_on = true);
+      // sendImage(moisture, image); //Capture and send image
+      // image = takePicture(flash_on = true);
+      // sendImage(moisture, image); //Capture and send image
       image = takePicture(flash_on = false);
       sendImage(moisture, image); //Capture and send image
       image = takePicture(flash_on = false);
