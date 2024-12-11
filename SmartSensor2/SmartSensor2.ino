@@ -58,14 +58,13 @@
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 #include "esp_camera.h"
-#include "ESP32TimerInterrupt.h"
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include "Connection.h"
 #include "Camera.h"
 
 #define MOISTURE_SENSOR 1 //GPIO1
-#define ELETROVALVE 8  //GPIO8
+#define PUMP 8  //GPIO8
 // based in 30 samples
 // #define DRY 680     // at 10 bit resolution, minimum value on the air, void space, at lab with varnished capacitive sensor
 // #define SOAKED 584  // at 10 bit resolution, maximum value for full cup of mineral water, at lab with varnished capacitive sensor
@@ -102,29 +101,24 @@ int moisture = 0;
 const int SAMPLES_EFFECTIVE_NUMBER = 256;
 const int SAMPLES_TOTAL_NUMBER = SAMPLES_EFFECTIVE_NUMBER + 2;
 
-unsigned long valve_period = 4;  //seconds
-unsigned long valve_period_aux1 = valve_period/2;
-unsigned long VALVE_PERIOD = valve_period_aux1*uS_TO_S_FACTOR;
+const int PUMP_ON_PERIOD = 10000; // miliseconds
 
-unsigned long publish_period = 40; //minutes
-unsigned long publish_period_aux1 = publish_period*60;
-unsigned long PUBLISH_PERIOD = publish_period_aux1*uS_TO_S_FACTOR;
+unsigned long sleep_period = 40; //minutes
+unsigned long sleep_period_aux1 = sleep_period*60;
+unsigned long SLEEP_PERIOD = sleep_period_aux1*uS_TO_S_FACTOR;
 
 bool turn_on = false;
 bool sending_failed = false;
 bool connection_status = false;
 bool flash_on =false;
 enum State { moisture_read,
-             valve_control,
+             pump_control,
              publish_data,
              deep_sleep };
 State state = moisture_read;
 
 int drop_counter = 0;
-unsigned long timestamp_last_activation = 0;
 
-// Init ESP32 timer 1
-ESP32Timer ITimer1(1);
 camera_fb_t * image = NULL;
 
 void wakeupHandle(){
@@ -144,28 +138,19 @@ void wakeupHandle(){
   }
 }
 
-//ISR to turn-off the valve
-bool IRAM_ATTR timer1ISR(void * timerNo) {
-
-  ets_printf("Timer1 Interruption\n");
-  valveControl(false);
-  interruptionTimer1Disable();
-	return true;
-}
-
 void setup() {
   
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
   Serial.begin(115200);
   // Sets the sample bits resolution,2⁹ = 512 bytes
   analogReadResolution(9);
-  pinMode(ELETROVALVE, OUTPUT);
-  digitalWrite(ELETROVALVE, LOW);
+  pinMode(PUMP, OUTPUT);
+  digitalWrite(PUMP, LOW);
  
   Serial.print("ESP Board MAC Address:  ");
   Serial.println(WiFi.macAddress());
-  Serial.println(VALVE_PERIOD);
-  Serial.println(PUBLISH_PERIOD);
+  Serial.println(PUMP_ON_PERIOD);
+  Serial.println(SLEEP_PERIOD);
 
   //Handle the wakeup reason for ESP32
   wakeupHandle();
@@ -173,33 +158,23 @@ void setup() {
   First we configure the wake up source
   We set our ESP32 to wake up every 30 minutes
   */
-  esp_sleep_enable_timer_wakeup(PUBLISH_PERIOD);
-  Serial.println("Setup ESP32 to sleep for every " + String(publish_period) + " minutes");
+  esp_sleep_enable_timer_wakeup(SLEEP_PERIOD);
+  Serial.println("Setup ESP32 to sleep for every " + String(sleep_period) + " minutes");
 
-  if (ITimer1.attachInterruptInterval(VALVE_PERIOD, timer1ISR))
-	{
-		Serial.println(F("Starting Timer1 OK"));
-	}
   cameraSetup();	
   connection_status = connectionSetup();	
 }
 
-void interruptionTimer1Enable(){
-  ITimer1.reattachInterrupt();
-  ITimer1.restartTimer();
-}
-
-void interruptionTimer1Disable(){
-  ITimer1.stopTimer();
-  ITimer1.detachInterrupt();  
-}
-
-void valveControl(bool flag) {
+void pumpControl(bool flag) {
   if (flag) {
-    digitalWrite(ELETROVALVE, HIGH);
-    interruptionTimer1Enable();
+    digitalWrite(PUMP, HIGH);
+    Serial.println("flag true: ligou! e espera 10 seg");
+    delay(PUMP_ON_PERIOD);
+    digitalWrite(PUMP, LOW);
+    Serial.println("flag true: desligou!");
   } else {
-    digitalWrite(ELETROVALVE, LOW);
+    digitalWrite(PUMP, LOW);
+    Serial.println("flag false: desligou!");
   }
 }
 
@@ -262,11 +237,11 @@ void loop() {
       moisture = moistureRead();
       Serial.print("Moisture: ");
       Serial.println(moisture);
-      state = valve_control;
+      state = pump_control;
       break;
 
-    case valve_control:
-      Serial.println("valve_control");
+    case pump_control:
+      Serial.println("pump_control");
       if (connection_status){
         updateHysteresis();
         state = publish_data;
@@ -276,13 +251,16 @@ void loop() {
       }
       if (moisture <= thresholds.lower_threshold) {
         turn_on = true;
-        valveControl(turn_on);
+        pumpControl(turn_on);
       } 
       else if (moisture >= thresholds.upper_threshold) {
         turn_on = false;
-        valveControl(turn_on);
+        pumpControl(turn_on);
       }
-      valveControl(turn_on);
+      else {
+        pumpControl(turn_on);
+      }
+      
       break;
 
     case publish_data:
