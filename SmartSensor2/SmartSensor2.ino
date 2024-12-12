@@ -64,7 +64,8 @@
 #include "Camera.h"
 
 #define MOISTURE_SENSOR 1 //GPIO1
-#define PUMP 8  //GPIO8
+// #define PUMP 8  //GPIO8 afetado pela placa da câmera
+#define PUMP 7  //GPIO7
 // based in 30 samples
 // #define DRY 680     // at 10 bit resolution, minimum value on the air, void space, at lab with varnished capacitive sensor
 // #define SOAKED 584  // at 10 bit resolution, maximum value for full cup of mineral water, at lab with varnished capacitive sensor
@@ -101,7 +102,7 @@ int moisture = 0;
 const int SAMPLES_EFFECTIVE_NUMBER = 256;
 const int SAMPLES_TOTAL_NUMBER = SAMPLES_EFFECTIVE_NUMBER + 2;
 
-const int PUMP_ON_PERIOD = 10000; // miliseconds
+const int PUMP_ON_PERIOD = 4000; // miliseconds
 
 unsigned long sleep_period = 40; //minutes
 unsigned long sleep_period_aux1 = sleep_period*60;
@@ -146,7 +147,8 @@ void setup() {
   analogReadResolution(9);
   pinMode(PUMP, OUTPUT);
   digitalWrite(PUMP, LOW);
- 
+  pinMode(LED_BUILTIN, OUTPUT);
+  
   Serial.print("ESP Board MAC Address:  ");
   Serial.println(WiFi.macAddress());
   Serial.println(PUMP_ON_PERIOD);
@@ -231,6 +233,8 @@ void updateHysteresis(){
 
 void loop() {
   switch (state) {
+    
+    digitalWrite(LED_BUILTIN, LOW);  // turn the LED on (HIGH is the voltage level)
 
     case moisture_read:
       Serial.println("moisture_read");
@@ -266,7 +270,7 @@ void loop() {
     case publish_data:
       Serial.println("publish_data");
       sending_failed = true;
-      Serial.println("==========");
+      Serial.println("1==========");
       sendData(moisture, turn_on, drop_counter);
       // image = takePicture(flash_on = true);
       // sendImage(moisture, image); //Capture and send image
@@ -274,15 +278,17 @@ void loop() {
       // sendImage(moisture, image); //Capture and send image
       // image = takePicture(flash_on = true);
       // sendImage(moisture, image); //Capture and send image
+
       image = takePicture(flash_on = false);
       sendImage(moisture, image); //Capture and send image
       image = takePicture(flash_on = false);
       sendImage(moisture, image); //Capture and send image
       image = takePicture(flash_on = false);
       sendImage(moisture, image); //Capture and send image
-      Serial.println("==========");
+      Serial.println("2==========");
       sending_failed = false;
       state = deep_sleep;
+
       break;
 
     case deep_sleep:
@@ -290,6 +296,8 @@ void loop() {
         connectionClose();
       }
       Serial.println("Going to sleep now");
+      digitalWrite(LED_BUILTIN, HIGH);  // turn the LED on (HIGH is the voltage level)
+      digitalWrite(PUMP, LOW);
       esp_deep_sleep_start();
       Serial.println("This will never be printed");	
       break;

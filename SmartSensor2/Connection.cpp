@@ -25,7 +25,7 @@ String file_name = "filename=ESP32-CAM.jpg";//"filename=ESP32-CAM.jpg";
 String mime_type = "&mimetype=image/jpeg";//"&mimetype=image/jpeg";
 String image2string = "&data=";
 int begin;
-const int time_2_reset = 10000; //10"
+const int timeout = 10000; //10"
 
 bool connectionSetup()
 {
@@ -36,7 +36,7 @@ bool connectionSetup()
   {
     Serial.print(".");
     // reset the esp after 10 seconds
-    if((millis() - begin) > time_2_reset){
+    if((millis() - begin) > timeout){
       // ESP.restart();  
       return false;
     }
@@ -132,7 +132,7 @@ void sendImage(float moisture, camera_fb_t * fb) {
     }
      
     String Data = file_name + mime_type + image2string;
-    esp_camera_fb_return(fb); 
+    // esp_camera_fb_return(fb); 
     Serial.println("Sending image to Google Drive.");
     String string_humidity = String(moisture,1);
     String url = "https://script.google.com/macros/s/"+ GOOGLE_DRIVE_SCRIPT_ID +"/exec?"+"moisture=" + string_humidity;
@@ -158,8 +158,9 @@ void sendImage(float moisture, camera_fb_t * fb) {
     while (!client.available()) { //Aguarda resposta do envio da imagem
       Serial.print(".");
       // reset the esp after 10 seconds
-      if((millis() - begin) > time_2_reset){
-        ESP.restart();  
+      if((millis() - begin) > timeout){
+        // ESP.restart();  
+        break;
       }
     }   
      
@@ -169,15 +170,18 @@ void sendImage(float moisture, camera_fb_t * fb) {
     while (client.available()) { //Aguarda resposta do envio da imagem
       Serial.print(char(client.read())); //Mostra na tela a resposta      
       // reset the esp after 10 seconds
-      if((millis() - begin) > time_2_reset){
-        ESP.restart();  
+      if((millis() - begin) > timeout){
+        // ESP.restart(); 
+        break; 
       }
     }        
   
   } else {         
     Serial.println("Connection to " + String(host) + " failed.");
+    // esp_camera_fb_return(fb);
   }
   client.stop();
+  esp_camera_fb_return(fb);
 }
 
 

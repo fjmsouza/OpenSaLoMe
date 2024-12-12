@@ -117,24 +117,24 @@ camera_fb_t* takePicture(bool flash_on){
   
   resetCamera();
   // active the flashlight
-  if (flash_on){
-    digitalWrite(FLASH,HIGH);
-  }
-  else{
-    digitalWrite(FLASH,LOW);
-  }
+  // if (flash_on){
+  //   digitalWrite(FLASH,HIGH);
+  // }
+  // else{
+  //   digitalWrite(FLASH,LOW);
+  // }
     
-  wait(500);
+  // wait(500);
   // capturing the image 
   fb = esp_camera_fb_get();
 
   if(!fb) { 
       Serial.println("Capture error!");
-      ESP.restart();
+      // ESP.restart();
   }
-  wait(500);
+  // wait(500);
   // deactive the flashlight
-  digitalWrite(FLASH,LOW);
+  // digitalWrite(FLASH,LOW);
  
   return fb;
 }
