@@ -111,7 +111,6 @@ unsigned long sleep_period_aux1 = sleep_period * 60;
 unsigned long SLEEP_PERIOD = sleep_period_aux1 * uS_TO_S_FACTOR;
 
 bool turn_on = false;
-bool sending_failed = false;
 bool connection_status = false;
 bool flash_on = false;
 enum State { moisture_read,
@@ -247,7 +246,6 @@ void updateHysteresis() {
       storage.writeString(storage.LOWER_THRESHOLD_PATH, "40");
     }
     // lê dado recebido
-    Serial.println("tem que passar aqui!!!!!!!!!!!");
     thresholds_string = receiveData();
     String upper_threshold_received = thresholds_string.substring(0, 2);
     String lower_threshold_received = thresholds_string.substring(3, 5);
@@ -260,7 +258,6 @@ void updateHysteresis() {
       // crivo: limiares >= 0 e limiar superior > limiar inferior?
       if ((upper_threshold_received.toInt() >= 0) && (lower_threshold_received.toInt() >= 0) && (upper_threshold_received.toInt() >= lower_threshold_received.toInt())) {
         // grava novos dados recebidos
-        Serial.println("tem que passar aqui 2!!!!!!!!!!!");
         storage.writeString(storage.UPPER_THRESHOLD_PATH, upper_threshold_received);
         storage.writeString(storage.LOWER_THRESHOLD_PATH, lower_threshold_received);
       }
@@ -311,7 +308,7 @@ void loop() {
         state = deep_sleep;
       }
       updateHysteresis();
-      if (moisture <= thresholds.lower_threshold) {
+      if (moisture < thresholds.lower_threshold) {
         turn_on = true;
         pumpControl(turn_on);
       } else if (moisture >= thresholds.upper_threshold) {
@@ -325,8 +322,7 @@ void loop() {
 
     case publish_data:
       Serial.println("publish_data");
-      sending_failed = true;
-      Serial.println("1==========");
+      Serial.println("=====INÍCIO DE ENVIO DE DADOS=====");
       sendData(moisture, turn_on, drop_counter);
       // image = takePicture(flash_on = true);
       // sendImage(moisture, image); //Capture and send image
@@ -341,8 +337,7 @@ void loop() {
       sendImage(moisture, image);  //Capture and send image
       image = takePicture(flash_on = false);
       sendImage(moisture, image);  //Capture and send image
-      Serial.println("2==========");
-      sending_failed = false;
+      Serial.println("=====FIM DE ENVIO DE DADOS=====");
       state = deep_sleep;
 
       break;
