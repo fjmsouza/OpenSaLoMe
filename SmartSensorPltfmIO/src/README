@@ -1,0 +1,77 @@
+// @ awake time, SmartSensor.ino is able to :
+// - read the soil moisture sensor;
+// - watering control via hysteresis, 2 humidity thresholds and activating a water pump, for example;
+// - send data and images to cloud;
+// - label images according humidity;
+// - fall asleep;
+
+// Some lessons learned:
+
+// ###
+// error:
+// error when compiling from Arduino IDE:
+// .arduino15/packages/esp32/tools/esptool_py/2.6.1/esptool.py", line 38, in
+// import serial
+// ImportError: No module named serial
+
+// solution:
+// https://github.com/espressif/esptool/issues/528
+// $ sudo apt install python-is-python3
+// or, in ubuntu 22.04 LTS:
+// 1. sudo apt install python3-pip
+// 2. pip install esptool
+
+// ###
+// error:
+// A fatal error occurred: Could not open /dev/ttyACM0, the port doesn't exist
+
+// solution:
+// sudo adduser username dialout
+// sudo chmod a+rw /dev/ttyACM0
+// or:
+// sudo usermod -a -G dialout username
+// and restart pc
+
+// ###
+// Before worked, but, after serious problems with native interruption as
+// https://circuitdigest.com/microcontroller-projects/esp32-timers-and-timer-interrupts
+// (incompability, perhaps) I decided to adopt the ESP32TimerInterrupt library
+
+// ###
+// error:
+// Osciloscópio no pino 9... não conecta wifi!!!
+
+// ###
+// error:
+// compilation problems in ESP32TimerInterrupt
+
+// Solution:
+// downgrade esp32 board from 3.0.0-alpha to 2.0.11
+
+// ###
+// error:
+// with camera integration reseting always
+
+// Solution:
+// enable OPI PSRAM in tools
+
+// #define PUMP 8  //GPIO8 afetado pela placa da câmera
+// based in 30 samples
+// #define DRY 680     // at 10 bit resolution, minimum value on the air, void space, at lab with varnished capacitive sensor
+// #define SOAKED 584  // at 10 bit resolution, maximum value for full cup of mineral water, at lab with varnished capacitive sensor
+// #define DRY 511     // at 9 bit resolution, maximum value at home with HD-38 (in the air, void space)
+// #define SOAKED 347  // at 9 bit resolution, minimum value at home with HD-38 (full cup of well water)
+// #define DRY 511     // at 9 bit resolution, minimum value at lab with HD-38 (in the air, void space)
+// #define SOAKED 210  // at 9 bit resolution, maximum value at lab with HD-38 (full cup of mineral water)
+// #define DRY 388     // at 9 bit resolution, minimum value at lab with HD-38 (in a DRY soil)
+// #define SOAKED 228  // at 9 bit resolution, maximum value at lab with HD-38 (in a SOAKED soil)
+// #define DRY 505     // at 10 bit resolution, minimum value at lab with HD-38 (in a DRY soil)
+// #define SOAKED 468  // at 10 bit resolution, maximum value at lab with HD-38 (in a SOAKED soil)
+// #define DRY 505     // at 11 bit resolution, minimum value at lab with HD-38 (in a DRY soil)
+// #define SOAKED 468  // at 11 bit resolution, maximum value at lab with HD-38 (in a SOAKED soil)
+// #define DRY 108     // at 7 bit resolution, minimum value at lab with HL-69 (in a DRY soil)
+// #define SOAKED 38  // at 7 bit resolution, maximum value at lab with HL-69 (in a SOAKED soil)
+// #define DRY 255     // at 8 bit resolution, minimum value at lab with HL-69 (in a DRY soil)
+// #define SOAKED 76  // at 8 bit resolution, maximum value at lab with HL-69 (in a SOAKED soil)
+// #define DRY 289     // at 9 bit resolution, minimum value at lab with cap sensor HW-390 v2.0 (in a DRY soil through the Goliah black box)
+// #define SOAKED 140  // at 9 bit resolution, maximum value at lab with cap sensor HW-390 v2.0 (in a SOAKED soil through the Goliah black box)
