@@ -183,10 +183,6 @@ void handleStates()
         image = Camera.takePicture();
         Serial.printf("Tamanho do JPEG: %d bytes\n", image->len);
         Connection.sendImage(moisture1, image);
-        image = Camera.takePicture();
-        Connection.sendImage(moisture1, image);
-        image = Camera.takePicture();
-        Connection.sendImage(moisture1, image);
         Serial.println("\n=====FIM DE ENVIO DE DADOS=====");
         state = deep_sleep;
         break;
@@ -196,13 +192,15 @@ void handleStates()
         {
             Connection.close();
         }
-        if (connection_fail_counter >= 4){
+        if (connection_fail_counter >= 4)
+        {
             connection_fail_counter = 0;
             ESP.restart();
         }
         Serial.println("Going to sleep now");
         digitalWrite(LED_BUILTIN, HIGH);
         digitalWrite(PUMP, LOW);
+        Camera.powerOff();
         esp_deep_sleep_start();
         Serial.println("This will never be printed");
         break;

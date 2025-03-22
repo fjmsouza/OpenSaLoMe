@@ -4,9 +4,7 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include "esp_camera.h"
-#include "Base_64.h"
 #include "Arduino.h"
-
 
 extern RTC_DATA_ATTR int connection_fail_counter;
 

@@ -34,6 +34,7 @@ public:
     void setup();
     void reset();
     camera_fb_t *takePicture();
+    void powerOff();
 };
 
 extern CameraHandler Camera;

@@ -1,6 +1,4 @@
-
 #include "system.h"
-
 
 void setup()
 {
@@ -9,10 +7,11 @@ void setup()
     Serial.begin(115200);
 
     // Configura resolução do ADC e pinos
-    analogReadResolution(9);// 2^9 = 512 bytes
+    analogReadResolution(9); // 2^9 = 512 bytes
     pinMode(PUMP, OUTPUT);
     digitalWrite(PUMP, LOW);
     pinMode(LED_BUILTIN, OUTPUT);
+    pinMode(PWDN_GPIO_NUM, OUTPUT);
 
     // Configura deep sleep para despertar a cada sleep_period minutos
     esp_sleep_enable_timer_wakeup(SLEEP_PERIOD);
@@ -20,10 +19,12 @@ void setup()
     Serial.println("\nSetup ESP32 to sleep for every " + String(sleep_period) + " minutes");
     Serial.printf("PSRAM: %dMB\n", esp_spiram_get_size() / 1048576);
 
-    // Inicializa storage, câmera e conexão
+    // Inicializa storage, conexão e câmera
     Storage.setup();
-    Camera.setup();
-    Connection.setup();
+
+    if (Connection.setup()){
+        Camera.setup();
+    }
 }
 
 void loop()

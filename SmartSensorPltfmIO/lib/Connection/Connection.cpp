@@ -37,48 +37,6 @@ bool ConnectionHandler::setup()
   return connection_status = true;
 }
 
-String ConnectionHandler::urlencode(String str) // Função de codificação
-{
-  String encodedString = "";
-  char c;
-  char code0;
-  char code1;
-  char code2;
-
-  for (int i = 0; i < str.length(); i++)
-  {
-    c = str.charAt(i);
-    if (c == ' ')
-    {
-      encodedString += '+';
-    }
-    else if (isalnum(c))
-    {
-      encodedString += c;
-    }
-    else
-    {
-      code1 = (c & 0xf) + '0';
-      if ((c & 0xf) > 9)
-      {
-        code1 = (c & 0xf) - 10 + 'A';
-      }
-      c = (c >> 4) & 0xf;
-      code0 = c + '0';
-      if (c > 9)
-      {
-        code0 = c - 10 + 'A';
-      }
-      code2 = '\0';
-      encodedString += '%';
-      encodedString += code0;
-      encodedString += code1;
-    }
-    yield();
-  }
-  return encodedString;
-}
-
 void ConnectionHandler::sendData(float moisture1, bool valve_state, float moisture2)
 {
   Serial.println("Connecting to " + String(host));
@@ -167,88 +125,11 @@ void ConnectionHandler::sendImage(float moisture, camera_fb_t *fb)
 
   if (!success) {
     Serial.println("Falha crítica: não foi possível enviar após tentativas");
+    // ESP.restart();
+    connection_fail_counter++;
   }
   esp_camera_fb_return(fb);
 }
-  // Serial.println("Connecting to " + String(host));
-  // WiFiClientSecure client;
-  // client.setInsecure();
-  // if (client.connect(host, httpsPort))
-  // { // Conectando no Google
-
-  //   Serial.println("Connection succeeded!");
-
-  //   char *input = (char *)fb->buf;
-  //   char output[base64_enc_len(3)];
-  //   String imageFile = "";
-
-  //   for (int i = 0; i < fb->len; i++)
-  //   {
-  //     base64_encode(output, (input++), 3);
-  //     if (i % 3 == 0)
-  //       imageFile += urlencode(String(output));
-  //   }
-
-  //   String Data = file_name + mime_type + image2string;
-  //   // esp_camera_fb_return(fb);
-  //   Serial.println("Sending image to Google Drive.");
-  //   String string_humidity = String(moisture, 1);
-  //   String url = "https://script.google.com/macros/s/" + GOOGLE_DRIVE_SCRIPT_ID + "/exec?" + "moisture=" + string_humidity;
-  //   Serial.print("requesting URL: ");
-  //   Serial.println(url);
-
-  //   client.println("POST " + url + " HTTP/1.1");
-  //   client.println("Host: " + String(host));
-  //   client.println("Content-Length: " + String(Data.length() + imageFile.length()));
-  //   client.println("Content-Type: application/x-www-form-urlencoded");
-  //   client.println();
-  //   client.print(Data);
-
-  //   int Index;
-
-  //   for (Index = 0; Index < imageFile.length(); Index = Index + 1000)
-  //   {
-  //     client.print(imageFile.substring(Index, Index + 1000));
-  //   }
-
-  //   Serial.println("Waiting response.");
-
-  //   begin = millis();
-  //   while (!client.available())
-  //   { // Aguarda resposta do envio da imagem
-  //     Serial.print(".");
-  //     // reset the esp after 10 seconds
-  //     if ((millis() - begin) > timeout)
-  //     {
-  //       // ESP.restart();
-  //       connection_fail_counter++;
-  //       break;
-  //     }
-  //   }
-
-  //   Serial.println();
-
-  //   begin = millis();
-  //   while (client.available())
-  //   {                                    // Aguarda resposta do envio da imagem
-  //     Serial.print(char(client.read())); // Mostra na tela a resposta
-  //     // reset the esp after 10 seconds
-  //     if ((millis() - begin) > timeout)
-  //     {
-  //       // ESP.restart();
-  //       connection_fail_counter++;
-  //       break;
-  //     }
-  //   }
-  // }
-  // else
-  // {
-  //   Serial.println("Connection to " + String(host) + " failed.");
-  //   // esp_camera_fb_return(fb);
-  // }
-  // client.stop();
-  // esp_camera_fb_return(fb);
-// }
 
 String ConnectionHandler::receiveData()
 {
@@ -289,7 +170,9 @@ String ConnectionHandler::receiveData()
   else
   {
     http.end();
-    return "0,0";
+    // ESP.restart();
+    connection_fail_counter++;
+    return "00,00";
   }
 }
 

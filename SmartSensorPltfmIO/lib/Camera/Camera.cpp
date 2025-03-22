@@ -25,19 +25,19 @@ void CameraHandler::setup()
       .pin_pclk = PCLK_GPIO_NUM,
 
       // XCLK 20MHz or 10MHz for OV2640 double FPS (Experimental)
-      .xclk_freq_hz = 20000000,
+      .xclk_freq_hz = 10000000,
       .ledc_timer = LEDC_TIMER_0,
       .ledc_channel = LEDC_CHANNEL_0,
 
       .pixel_format = PIXFORMAT_JPEG, // YUV422,GRAYSCALE,RGB565,JPEG
       // FRAMESIZE_QVGA, FRAMESIZE_HVGA, FRAMESIZE_VGA, FRAMESIZE_SVGA worked fine
       // .frame_size = FRAMESIZE_SXGA, // QQVGA-UXGA Do not use sizes above QVGA when not JPEG
-      .frame_size = FRAMESIZE_QSXGA,
-      .jpeg_quality = 12, // 0-63  (próximos de 0): Menor compressão, ou seja, a imagem tem maior qualidade e, consequentemente, maior tamanho de arquivo.
-                          // (próximos de 63): Maior compressão, resultando em imagem com menor qualidade e arquivo menor.
-      .fb_count = 1, // if more than one, i2s runs in continuous mode. Use only with JPEG
+      .frame_size = FRAMESIZE_WQXGA, //FRAMESIZE_QHD, // FRAMESIZE_QXGA,
+      .jpeg_quality = 12,          // 0-63  (próximos de 0): Menor compressão, ou seja, a imagem tem maior qualidade e, consequentemente, maior tamanho de arquivo.
+                                   // (próximos de 63): Maior compressão, resultando em imagem com menor qualidade e arquivo menor.
+      .fb_count = 1,               // if more than one, i2s runs in continuous mode. Use only with JPEG
       .fb_location = CAMERA_FB_IN_PSRAM,
-      .grab_mode = CAMERA_GRAB_WHEN_EMPTY,
+      .grab_mode = CAMERA_GRAB_LATEST, // CAMERA_GRAB_WHEN_EMPTY,
   };
   esp_err_t err = esp_camera_init(&config); // Inicialização da câmera
 
@@ -46,6 +46,18 @@ void CameraHandler::setup()
     Serial.printf("Camera initialization error 0x%x", err); // Informa erro se a câmera não for iniciada corretamente
     ESP.restart();                                          // Reinicia o ESP
   }
+
+  sensor_t *s = esp_camera_sensor_get();
+  // Exemplo: setar anti-flicker para 50 Hz ou 60 Hz
+  // s->set_framerate(s, 15);        // Ajustar framerate
+  s->set_special_effect(s, 0); // Sem efeito especial
+  s->set_aec2(s, 1);           // Ativa AEC2 (Auto Exposure)
+  s->set_ae_level(s, 0);       // Nível de exposição
+  s->set_agc_gain(s, 15);      // Ajuste de ganho
+
+  s->set_lenc(s, 0);         // Desativa correção de lente
+  s->set_raw_gma(s, 0);      // Desativa ajuste gamma
+  s->set_reg(s, 0x3A, 0xFF, 0x04); // Modo RAW (evita processamento interno)
   // sensor_t * s = esp_camera_sensor_get();
   // s->set_brightness(s, 0);     // -2 to 2
   // s->set_contrast(s, 0);       // -2 to 2
@@ -65,7 +77,7 @@ void CameraHandler::setup()
   // s->set_wpc(s, 1);            // 0 = disable , 1 = enable
   // s->set_raw_gma(s, 1);        // 0 = disable , 1 = enable
   // s->set_lenc(s, 0);           // 0 = disable , 1 = enable
-  // s->set_hmirror(s, 0);        // 0 = disable , 1 = enable
+  s->set_hmirror(s, 1);        // 0 = disable , 1 = enable
   // s->set_vflip(s, 0);          // 0 = disable , 1 = enable
   // s->set_dcw(s, 1);            // 0 = disable , 1 = enable
   // s->set_colorbar(s, 0);       // 0 = disable , 1 = enable
@@ -97,4 +109,26 @@ camera_fb_t *CameraHandler::takePicture()
     ESP.restart();
   }
   return fb;
+}
+
+void CameraHandler::powerOff()
+{
+
+  // 1. Desinicializa a câmera (libera recursos)
+  esp_camera_deinit();
+
+  // 2. Configura manualmente os pinos críticos para LOW
+  pinMode(XCLK_GPIO_NUM, OUTPUT);
+  digitalWrite(XCLK_GPIO_NUM, LOW); // Desliga o clock
+
+  // 3. Desativa os pinos de dados (D0-D7)
+  const int dataPins[] = {Y2_GPIO_NUM, Y3_GPIO_NUM, Y4_GPIO_NUM, Y5_GPIO_NUM,
+                          Y6_GPIO_NUM, Y7_GPIO_NUM, Y8_GPIO_NUM, Y9_GPIO_NUM};
+  for (int pin : dataPins)
+  {
+    pinMode(pin, OUTPUT);
+    digitalWrite(pin, LOW);
+  }
+
+  Serial.println("Câmera desligada via software!");
 }
