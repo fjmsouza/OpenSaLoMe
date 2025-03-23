@@ -10,8 +10,7 @@
 // https://www.niraltek.com/blog/how-to-take-photos-and-upload-it-to-google-drive-using-esp32-cam/
 // https://www.makerhero.com/blog/tire-fotos-com-esp32-cam-e-armazene-no-google-drive/
 
-RTC_DATA_ATTR int connection_fail_counter = 0;
-
+RTC_DATA_ATTR int fail_counter = 0;
 ConnectionHandler Connection;
 
 bool ConnectionHandler::setup()
@@ -27,9 +26,7 @@ bool ConnectionHandler::setup()
     if ((millis() - begin) > timeout)
     {
       // ESP.restart();
-      connection_fail_counter++;
-
-      Serial.printf("Connection failed %d times!", connection_fail_counter);
+      fail_counter++;
       return connection_status = false;
     }
   }
@@ -126,7 +123,7 @@ void ConnectionHandler::sendImage(float moisture, camera_fb_t *fb)
   if (!success) {
     Serial.println("Falha crítica: não foi possível enviar após tentativas");
     // ESP.restart();
-    connection_fail_counter++;
+    fail_counter++;
   }
   esp_camera_fb_return(fb);
 }
@@ -171,7 +168,7 @@ String ConnectionHandler::receiveData()
   {
     http.end();
     // ESP.restart();
-    connection_fail_counter++;
+    fail_counter++;
     return "00,00";
   }
 }

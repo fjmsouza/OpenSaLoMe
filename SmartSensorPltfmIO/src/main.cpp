@@ -23,7 +23,7 @@ void setup()
     Storage.setup();
 
     if (Connection.setup()){
-        Camera.setup();
+        Camera.setup(false);
     }
 }
 

@@ -6,8 +6,7 @@
 #include "esp_camera.h"
 #include "Arduino.h"
 
-extern RTC_DATA_ATTR int connection_fail_counter;
-
+extern RTC_DATA_ATTR int fail_counter;
 class ConnectionHandler
 {
 public:

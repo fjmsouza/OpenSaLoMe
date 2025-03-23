@@ -31,9 +31,9 @@ public:
     camera_fb_t *fb = NULL;
     camera_fb_t *image = NULL;
 
-    void setup();
+    void setup(bool high_resolution);
     void reset();
-    camera_fb_t *takePicture();
+    camera_fb_t *takeDayPicture();
     void powerOff();
 };
 

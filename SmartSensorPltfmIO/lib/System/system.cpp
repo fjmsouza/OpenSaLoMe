@@ -140,6 +140,7 @@ void handleStates()
     switch (state)
     {
     case moisture_read:
+        Serial.printf("\nnumero de falhas: %d", fail_counter);
         Serial.println("\nmoisture_read");
         moisture1 = moistureRead(MOISTURE_SENSOR1);
         moisture2 = moistureRead(MOISTURE_SENSOR2);
@@ -179,10 +180,18 @@ void handleStates()
         Serial.println("\n=====INÍCIO DE ENVIO DE DADOS=====");
         Connection.sendData(moisture1, turn_on, moisture2);
 
-        // Captura e envia imagens (ajuste conforme necessidade)
-        image = Camera.takePicture();
-        Serial.printf("Tamanho do JPEG: %d bytes\n", image->len);
-        Connection.sendImage(moisture1, image);
+        // Captura e envia imagens
+        image = Camera.takeDayPicture();
+        if (image)
+        {
+            Serial.printf("Tamanho do JPEG: %d bytes\n", image->len);
+            Connection.sendImage(moisture1, image);
+        }
+        else
+        {
+            fail_counter++;
+        }
+
         Serial.println("\n=====FIM DE ENVIO DE DADOS=====");
         state = deep_sleep;
         break;
@@ -192,15 +201,15 @@ void handleStates()
         {
             Connection.close();
         }
-        if (connection_fail_counter >= 4)
+        if (fail_counter >= 4)
         {
-            connection_fail_counter = 0;
+            fail_counter = 0;
             ESP.restart();
         }
+        Camera.powerOff();
         Serial.println("Going to sleep now");
         digitalWrite(LED_BUILTIN, HIGH);
         digitalWrite(PUMP, LOW);
-        Camera.powerOff();
         esp_deep_sleep_start();
         Serial.println("This will never be printed");
         break;
