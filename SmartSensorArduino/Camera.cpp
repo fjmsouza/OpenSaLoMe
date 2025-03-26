@@ -55,7 +55,7 @@ void cameraSetup(){
     .pin_pclk = PCLK_GPIO_NUM,
 
     //XCLK 20MHz or 10MHz for OV2640 double FPS (Experimental)
-    .xclk_freq_hz = 20000000,
+    .xclk_freq_hz = 10000000,
     .ledc_timer = LEDC_TIMER_0,
     .ledc_channel = LEDC_CHANNEL_0,
 
@@ -63,10 +63,10 @@ void cameraSetup(){
 //    FRAMESIZE_QVGA, FRAMESIZE_HVGA, FRAMESIZE_VGA, FRAMESIZE_SVGA worked fine
     .frame_size = FRAMESIZE_SXGA,    //QQVGA-UXGA Do not use sizes above QVGA when not JPEG
 
-    .jpeg_quality = JPG_QUALITY, //0-63 lower number means higher quality
+    .jpeg_quality = 12, //0-63 lower number means higher quality
     .fb_count = 1,       //if more than one, i2s runs in continuous mode. Use only with JPEG
     .fb_location = CAMERA_FB_IN_PSRAM,
-    .grab_mode = CAMERA_GRAB_WHEN_EMPTY,
+    .grab_mode = CAMERA_GRAB_LATEST,
   };
    
   esp_err_t err = esp_camera_init(&config); //Inicialização da câmera
@@ -76,6 +76,15 @@ void cameraSetup(){
     // delay(1000);
     ESP.restart();//Reinicia o ESP
   }
+  sensor_t *s = esp_camera_sensor_get();
+  s->set_special_effect(s, 0);
+  s->set_aec2(s, 1);
+  s->set_ae_level(s, 0);
+  s->set_agc_gain(s, 15);
+  s->set_lenc(s, 0);
+  s->set_raw_gma(s, 0);
+  s->set_reg(s, 0x3A, 0xFF, 0x04);
+  // s->set_hmirror(s, 1);
   // sensor_t * s = esp_camera_sensor_get();
   // s->set_brightness(s, 0);     // -2 to 2
   // s->set_contrast(s, 0);       // -2 to 2
@@ -113,18 +122,9 @@ void resetCamera(){
 }
 
 
-camera_fb_t* takePicture(bool flash_on){
+camera_fb_t* takePicture(){
   
   resetCamera();
-  // active the flashlight
-  // if (flash_on){
-  //   digitalWrite(FLASH,HIGH);
-  // }
-  // else{
-  //   digitalWrite(FLASH,LOW);
-  // }
-    
-  // wait(500);
   // capturing the image 
   fb = esp_camera_fb_get();
 
@@ -132,9 +132,6 @@ camera_fb_t* takePicture(bool flash_on){
       Serial.println("Capture error!");
       // ESP.restart();
   }
-  // wait(500);
-  // deactive the flashlight
-  // digitalWrite(FLASH,LOW);
- 
+
   return fb;
 }

@@ -37,7 +37,7 @@ bool connectionSetup()
     Serial.print(".");
     // reset the esp after 10 seconds
     if((millis() - begin) > timeout){
-      // ESP.restart();  
+      ESP.restart();  
       return false;
     }
   }  
@@ -159,7 +159,7 @@ void sendImage(float moisture, camera_fb_t * fb) {
       Serial.print(".");
       // reset the esp after 10 seconds
       if((millis() - begin) > timeout){
-        // ESP.restart();  
+        ESP.restart();  
         break;
       }
     }   
@@ -171,7 +171,7 @@ void sendImage(float moisture, camera_fb_t * fb) {
       Serial.print(char(client.read())); //Mostra na tela a resposta      
       // reset the esp after 10 seconds
       if((millis() - begin) > timeout){
-        // ESP.restart(); 
+        ESP.restart(); 
         break; 
       }
     }        

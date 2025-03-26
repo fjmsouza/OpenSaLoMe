@@ -1,11 +1,15 @@
 #include "Storage.h"
 
 void Storage::setup() {
-  if (!LittleFS.begin()) {
-    Serial.println("Erro ao montar o sistema de arquivos LittleFS!");
+   if (!LittleFS.begin(true, "/littlefs", 10, "spiffs")) {
+    Serial.println("LittleFS corrompido. Formatando...");
+    LittleFS.format();
+    if (!LittleFS.begin(true, "/littlefs", 10, "spiffs")) {
+      Serial.println("Falha crítica após formatação!");
+    }
     return;
   }
-  Serial.println("Montou sistema de arquivos LittleFS!");
+  Serial.println("LittleFS montado com sucesso!");
   return;
 }
 

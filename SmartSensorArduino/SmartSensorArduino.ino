@@ -104,9 +104,9 @@ int moisture = 0;
 const int SAMPLES_EFFECTIVE_NUMBER = 256;
 const int SAMPLES_TOTAL_NUMBER = SAMPLES_EFFECTIVE_NUMBER + 2;
 
-const int PUMP_ON_PERIOD = 4000;  // miliseconds
+const int PUMP_ON_PERIOD = 30000;  // miliseconds
 
-unsigned long sleep_period = 40;  //minutes
+unsigned long sleep_period = 15;  //minutes
 unsigned long sleep_period_aux1 = sleep_period * 60;
 unsigned long SLEEP_PERIOD = sleep_period_aux1 * uS_TO_S_FACTOR;
 
@@ -173,7 +173,7 @@ void setup() {
 void pumpControl(bool flag) {
   if (flag) {
     digitalWrite(PUMP, HIGH);
-    Serial.println("flag true: ligou! e espera 10 seg");
+    Serial.println("flag true: ligou! e espera 4 seg");
     delay(PUMP_ON_PERIOD);
     digitalWrite(PUMP, LOW);
     Serial.println("flag true: desligou!");
@@ -297,18 +297,29 @@ void loop() {
       moisture = moistureRead();
       Serial.print("Moisture: ");
       Serial.println(moisture);
+      if (connection_status) {
+        state = publish_data;
+      } else {
+        state = pump_control;
+      }
+      break;
+
+    case publish_data:
+      Serial.println("publish_data");
+      Serial.println("=====INÍCIO DE ENVIO DE DADOS=====");
+      sendData(moisture, turn_on, drop_counter);
+      image = takePicture();
+      sendImage(moisture, image);  //Capture and send image
+      Serial.println("=====FIM DE ENVIO DE DADOS=====");
       state = pump_control;
       break;
 
     case pump_control:
       Serial.println("pump_control");
-      if (connection_status) {
-        state = publish_data;
-      } else {
-        state = deep_sleep;
-      }
       updateHysteresis();
       if (moisture < thresholds.lower_threshold) {
+        Serial.println(moisture);
+        Serial.println(thresholds.lower_threshold);
         turn_on = true;
         pumpControl(turn_on);
       } else if (moisture >= thresholds.upper_threshold) {
@@ -317,29 +328,7 @@ void loop() {
       } else {
         pumpControl(turn_on);
       }
-
-      break;
-
-    case publish_data:
-      Serial.println("publish_data");
-      Serial.println("=====INÍCIO DE ENVIO DE DADOS=====");
-      sendData(moisture, turn_on, drop_counter);
-      // image = takePicture(flash_on = true);
-      // sendImage(moisture, image); //Capture and send image
-      // image = takePicture(flash_on = true);
-      // sendImage(moisture, image); //Capture and send image
-      // image = takePicture(flash_on = true);
-      // sendImage(moisture, image); //Capture and send image
-
-      image = takePicture(flash_on = false);
-      sendImage(moisture, image);  //Capture and send image
-      image = takePicture(flash_on = false);
-      sendImage(moisture, image);  //Capture and send image
-      image = takePicture(flash_on = false);
-      sendImage(moisture, image);  //Capture and send image
-      Serial.println("=====FIM DE ENVIO DE DADOS=====");
       state = deep_sleep;
-
       break;
 
     case deep_sleep:

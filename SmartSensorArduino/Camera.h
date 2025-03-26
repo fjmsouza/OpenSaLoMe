@@ -4,4 +4,4 @@
 
 void cameraSetup();
 void resetCamera();
-camera_fb_t* takePicture(bool flash_on);
+camera_fb_t* takePicture();
