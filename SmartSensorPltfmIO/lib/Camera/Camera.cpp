@@ -4,7 +4,7 @@ CameraHandler Camera;
 
 void CameraHandler::setup(bool high_resolution)
 {
-  esp_camera_deinit(); 
+  esp_camera_deinit();
 
   camera_config_t config = {
       .pin_pwdn = PWDN_GPIO_NUM,
@@ -30,7 +30,7 @@ void CameraHandler::setup(bool high_resolution)
       .ledc_channel = LEDC_CHANNEL_0,
 
       .pixel_format = high_resolution ? PIXFORMAT_JPEG : PIXFORMAT_GRAYSCALE,
-      .frame_size = high_resolution ? FRAMESIZE_WQXGA : FRAMESIZE_96X96,
+      .frame_size = high_resolution ? FRAMESIZE_WQXGA : FRAMESIZE_96X96, // FRAMESIZE_WQXGA para 5MPixels, FRAMESIZE_SXGA para 2MPixels
       .jpeg_quality = 12,
       .fb_count = 1,
       .fb_location = CAMERA_FB_IN_PSRAM,
@@ -52,7 +52,6 @@ void CameraHandler::setup(bool high_resolution)
   s->set_lenc(s, 0);
   s->set_raw_gma(s, 0);
   s->set_reg(s, 0x3A, 0xFF, 0x04);
-  s->set_hmirror(s, 1);
 
   Serial.printf("Camera initialized successfully in %s resolution!\n", high_resolution ? "HIGH" : "LOW");
 }

@@ -1,8 +1,7 @@
 #include "system.h"
 
 // Variáveis globais
-int moisture1 = 0;
-int moisture2 = 0;
+float moisture = 0;
 
 struct Hysteresis thresholds;
 String thresholds_string = "";
@@ -10,7 +9,7 @@ String thresholds_string = "";
 const int SAMPLES_EFFECTIVE_NUMBER = 256;
 const int SAMPLES_TOTAL_NUMBER = SAMPLES_EFFECTIVE_NUMBER + 2;
 
-unsigned long sleep_period = 40; // em minutos
+unsigned long sleep_period = 15; // em minutos
 unsigned long sleep_period_aux1 = sleep_period * 60;
 unsigned long SLEEP_PERIOD = sleep_period_aux1 * uS_TO_S_FACTOR;
 
@@ -27,7 +26,7 @@ void pumpControl(bool flag)
     if (flag)
     {
         digitalWrite(PUMP, HIGH);
-        Serial.println("Pump ligou! aguarda 10 seg");
+        Serial.printf("Pump ligou! aguarda %s seg", PUMP_ON_PERIOD/1000);
         delay(PUMP_ON_PERIOD);
         digitalWrite(PUMP, LOW);
         Serial.println("Pump desligou!");
@@ -142,29 +141,48 @@ void handleStates()
     case moisture_read:
         Serial.printf("\nnumero de falhas: %d", fail_counter);
         Serial.println("\nmoisture_read");
-        moisture1 = moistureRead(MOISTURE_SENSOR1);
-        moisture2 = moistureRead(MOISTURE_SENSOR2);
-        Serial.printf("\nMoisture1 = %d e Moisture2 = %d \n", moisture1, moisture2);
-        state = pump_control;
-        break;
-
-    case pump_control:
-        Serial.println("pump_control");
+        moisture = moistureRead(MOISTURE_SENSOR);
+        Serial.printf("\nmoisture = %d \n", moisture);
         if (Connection.connection_status)
         {
             state = publish_data;
         }
         else
         {
-            state = deep_sleep;
+            state = pump_control;
         }
+        break;
+
+    case publish_data:
+        Serial.println("publish_data");
+        Serial.println("\n=====INÍCIO DE ENVIO DE DADOS=====");
+        Connection.sendData(moisture, turn_on);
+
+        // Captura e envia imagens
+        image = Camera.takeDayPicture();
+        if (image)
+        {
+            Serial.printf("Tamanho do JPEG: %d bytes\n", image->len);
+            Connection.sendImage(moisture, image);
+        }
+        else
+        {
+            fail_counter++;
+        }
+
+        Serial.println("\n=====FIM DE ENVIO DE DADOS=====");
+        state = pump_control;
+        break;
+
+    case pump_control:
+        Serial.println("pump_control");
         updateHysteresis();
-        if (moisture1 < thresholds.lower_threshold)
+        if (moisture < thresholds.lower_threshold)
         {
             turn_on = true;
             pumpControl(turn_on);
         }
-        else if (moisture1 >= thresholds.upper_threshold)
+        else if (moisture >= thresholds.upper_threshold)
         {
             turn_on = false;
             pumpControl(turn_on);
@@ -173,26 +191,6 @@ void handleStates()
         {
             pumpControl(turn_on);
         }
-        break;
-
-    case publish_data:
-        Serial.println("publish_data");
-        Serial.println("\n=====INÍCIO DE ENVIO DE DADOS=====");
-        Connection.sendData(moisture1, turn_on, moisture2);
-
-        // Captura e envia imagens
-        image = Camera.takeDayPicture();
-        if (image)
-        {
-            Serial.printf("Tamanho do JPEG: %d bytes\n", image->len);
-            Connection.sendImage(moisture1, image);
-        }
-        else
-        {
-            fail_counter++;
-        }
-
-        Serial.println("\n=====FIM DE ENVIO DE DADOS=====");
         state = deep_sleep;
         break;
 
@@ -201,7 +199,7 @@ void handleStates()
         {
             Connection.close();
         }
-        if (fail_counter >= 4)
+        if (fail_counter >= 1)
         {
             fail_counter = 0;
             ESP.restart();

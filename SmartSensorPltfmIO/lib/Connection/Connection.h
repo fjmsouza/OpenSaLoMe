@@ -25,7 +25,7 @@ public:
     // camera_fb_t *fb = NULL;
     // camera_fb_t *image = NULL;
     bool setup();
-    void sendData(float moisture1, bool valve_state, float moisture2);
+    void sendData(float moisture, bool valve_state);
     String urlencode(String str);
     void sendImage(float moisture, camera_fb_t *fb);
     String receiveData();

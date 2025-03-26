@@ -34,7 +34,7 @@ bool ConnectionHandler::setup()
   return connection_status = true;
 }
 
-void ConnectionHandler::sendData(float moisture1, bool valve_state, float moisture2)
+void ConnectionHandler::sendData(float moisture, bool valve_state)
 {
   Serial.println("Connecting to " + String(host));
   WiFiClientSecure client;
@@ -43,8 +43,7 @@ void ConnectionHandler::sendData(float moisture1, bool valve_state, float moistu
   {
 
     Serial.println("Connection succeeded!");
-    String string_humidity1 = String(moisture1, 1);
-    String string_humidity2 = String(moisture2, 1);
+    String string_humidity = String(moisture, 1);
     String string_valve_state = "";
     if (valve_state)
     {
@@ -56,7 +55,7 @@ void ConnectionHandler::sendData(float moisture1, bool valve_state, float moistu
     }
 
     Serial.println("Sending data to Google Sheets.");
-    String url = "https://script.google.com/macros/s/" + GOOGLE_SHEETS_SCRIPT_ID + "/exec?" + "moisture1=" + string_humidity1 + "&valvestate=" + string_valve_state + +"&moisture2=" + string_humidity2;
+    String url = "https://script.google.com/macros/s/" + GOOGLE_SHEETS_SCRIPT_ID + "/exec?" + "moisture=" + string_humidity + "&valvestate=" + string_valve_state;
     Serial.print("requesting URL: ");
     Serial.println(url);
 

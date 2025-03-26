@@ -11,9 +11,8 @@
 #define DRY 241                   // valor mínimo para solo seco
 #define SOAKED 164                // valor máximo para solo encharcado
 #define uS_TO_S_FACTOR 1000000ULL // conversão de microssegundos para segundos
-#define PUMP_ON_PERIOD 4000       // tempo de acionamento da bomba (ms)
-#define MOISTURE_SENSOR1 1         // exemplo de pino do sensor de umidade
-#define MOISTURE_SENSOR2 2         // exemplo de pino do sensor de umidade
+#define PUMP_ON_PERIOD 30000       // tempo de acionamento da bomba (ms)
+#define MOISTURE_SENSOR 1         // exemplo de pino do sensor de umidade
 #define PUMP 7                    // GPIO7, GPIO8 não pode, afetado pela placa da câmera
 // Estrutura para os limiares de histerese
 struct Hysteresis
