@@ -104,7 +104,6 @@ void updateCommand()
 
 void systemPowerOff()
 {
-    Camera.powerOff();
     digitalWrite(LED_BUILTIN, HIGH);
     digitalWrite(PUMP, LOW);
     rtc_gpio_hold_en(GPIO_NUM_7); // make sure pump is held LOW in sleep
@@ -145,7 +144,7 @@ void handleStates()
             Serial.printf("JPEG size: %d bytes\n", image->len);
             Connection.sendImage(moisture, image);
         }
-
+        Camera.powerOff();
         state = pump_control;
         break;
 
@@ -181,7 +180,7 @@ void handleStates()
         break;
     case deep_sleep:
         Serial.println("deep_sleep");
-        Serial.printf("\nnumero de falhas: %d", fail_counter);
+        Serial.printf("\nnumber of failures: %d \n", fail_counter);
         if (Connection.connection_status)
         {
             Connection.close();
