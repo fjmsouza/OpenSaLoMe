@@ -1,40 +1,43 @@
 #include "system.h"
+#include "Connection.h"
+#include "Camera.h"
 
-// Variáveis globais
-float moisture = 0;
-
-struct Hysteresis thresholds;
-String thresholds_string = "";
-
-const int SAMPLES_EFFECTIVE_NUMBER = 256;
-const int SAMPLES_TOTAL_NUMBER = SAMPLES_EFFECTIVE_NUMBER + 2;
-
-unsigned long sleep_period = 15; // em minutos
+// Definições (com inicialização)
+String command = "";
+enum State state = moisture_read;
+int moisture = 0;
+bool turn_on = false;
+unsigned long sleep_period = 15;
 unsigned long sleep_period_aux1 = sleep_period * 60;
 unsigned long SLEEP_PERIOD = sleep_period_aux1 * uS_TO_S_FACTOR;
 
-bool turn_on = false;
-bool flash_on = false;
+RTC_DATA_ATTR int fail_counter = 0;
 
-State state = moisture_read;
-int drop_counter = 0;
-camera_fb_t *image = NULL;
+void setupPinout(){
+    pinMode(LED_BUILTIN, OUTPUT);
+    pinMode(PWDN_GPIO_NUM, OUTPUT);
+    pinMode(PUMP, OUTPUT); // GPIO for LED flash
+    digitalWrite(PUMP, LOW);
+    rtc_gpio_hold_dis(GPIO_NUM_4); // disable pin hold if it was enabled before sleeping
+}
 
 // Função que controla a bomba
 void pumpControl(bool flag)
 {
+
     if (flag)
     {
+        delay(1000);
         digitalWrite(PUMP, HIGH);
-        Serial.printf("Pump ligou! aguarda %s seg", PUMP_ON_PERIOD/1000);
+        Serial.printf("Pump turned on! Wait %d secs", PUMP_ON_PERIOD / 1000);
         delay(PUMP_ON_PERIOD);
         digitalWrite(PUMP, LOW);
-        Serial.println("Pump desligou!");
+        Serial.println("Pump turned off!");
     }
     else
     {
         digitalWrite(PUMP, LOW);
-        Serial.println("Pump desligou!");
+        Serial.println("Pump turned off!");
     }
 }
 
@@ -78,58 +81,38 @@ int moistureRead(int moisture_sensor)
     return moisture;
 }
 
-// Função para atualizar os limiares de histerese usando a Storage e dados recebidos
-void updateHysteresis()
+// Função para capturar comando de rega
+void updateCommand()
 {
+
     if (Connection.connection_status)
     {
-        if ((Storage.fileExists(Storage.UPPER_THRESHOLD_PATH)) && (Storage.fileExists(Storage.LOWER_THRESHOLD_PATH)))
-        {
-            // Os arquivos já existem
-        }
-        else
-        {
-            Storage.createFile(Storage.UPPER_THRESHOLD_PATH);
-            Storage.createFile(Storage.LOWER_THRESHOLD_PATH);
-            Storage.writeString(Storage.UPPER_THRESHOLD_PATH, "41");
-            Storage.writeString(Storage.LOWER_THRESHOLD_PATH, "40");
-        }
-        thresholds_string = Connection.receiveData();
-        String upper_threshold_received = thresholds_string.substring(0, 2);
-        String lower_threshold_received = thresholds_string.substring(3, 5);
-        String upper_threshold_recorded = Storage.readString(Storage.UPPER_THRESHOLD_PATH);
-        String lower_threshold_recorded = Storage.readString(Storage.LOWER_THRESHOLD_PATH);
 
-        if ((upper_threshold_received != upper_threshold_recorded) || (lower_threshold_received != lower_threshold_recorded))
+        command = Connection.receiveData();
+        Serial.println(command);
+
+        if (command != "water")
         {
-            if ((upper_threshold_received.toInt() >= 0) && (lower_threshold_received.toInt() >= 0) && (upper_threshold_received.toInt() >= lower_threshold_received.toInt()))
-            {
-                Storage.writeString(Storage.UPPER_THRESHOLD_PATH, upper_threshold_received);
-                Storage.writeString(Storage.LOWER_THRESHOLD_PATH, lower_threshold_received);
-            }
+            command = "no water";
         }
     }
     else
     {
-        if ((Storage.fileExists(Storage.UPPER_THRESHOLD_PATH)) && (Storage.fileExists(Storage.LOWER_THRESHOLD_PATH)))
-        {
-            // Já existem
-        }
-        else
-        {
-            Storage.createFile(Storage.UPPER_THRESHOLD_PATH);
-            Storage.createFile(Storage.LOWER_THRESHOLD_PATH);
-            Storage.writeString(Storage.UPPER_THRESHOLD_PATH, "41");
-            Storage.writeString(Storage.LOWER_THRESHOLD_PATH, "40");
-        }
+        command = "no water";
     }
-    thresholds.upper_threshold = Storage.readString(Storage.UPPER_THRESHOLD_PATH).toInt();
-    thresholds.lower_threshold = Storage.readString(Storage.LOWER_THRESHOLD_PATH).toInt();
-
-    Serial.println("valores dos limiares:");
-    Serial.println(thresholds.upper_threshold);
-    Serial.println(thresholds.lower_threshold);
 }
+
+void systemPowerOff()
+{
+    Camera.powerOff();
+    digitalWrite(LED_BUILTIN, HIGH);
+    digitalWrite(PUMP, LOW);
+    rtc_gpio_hold_en(GPIO_NUM_7); // make sure pump is held LOW in sleep
+    Serial.println("Going to sleep now");
+    esp_deep_sleep_start();
+    Serial.println("This will never be printed");
+}
+
 
 // Função que gerencia os estados do sistema
 void handleStates()
@@ -139,13 +122,12 @@ void handleStates()
     switch (state)
     {
     case moisture_read:
-        Serial.printf("\nnumero de falhas: %d", fail_counter);
         Serial.println("\nmoisture_read");
         moisture = moistureRead(MOISTURE_SENSOR);
         Serial.printf("\nmoisture = %d \n", moisture);
         if (Connection.connection_status)
         {
-            state = publish_data;
+            state = send_image;
         }
         else
         {
@@ -153,48 +135,53 @@ void handleStates()
         }
         break;
 
-    case publish_data:
-        Serial.println("publish_data");
-        Serial.println("\n=====INÍCIO DE ENVIO DE DADOS=====");
-        Connection.sendData(moisture, turn_on);
+    case send_image:
+        Serial.println("send_image");
 
         // Captura e envia imagens
         image = Camera.takeDayPicture();
         if (image)
         {
-            Serial.printf("Tamanho do JPEG: %d bytes\n", image->len);
+            Serial.printf("JPEG size: %d bytes\n", image->len);
             Connection.sendImage(moisture, image);
         }
-        else
-        {
-            fail_counter++;
-        }
 
-        Serial.println("\n=====FIM DE ENVIO DE DADOS=====");
         state = pump_control;
         break;
 
     case pump_control:
         Serial.println("pump_control");
-        updateHysteresis();
-        if (moisture < thresholds.lower_threshold)
+
+        updateCommand();
+
+        if (command == "water")
         {
             turn_on = true;
             pumpControl(turn_on);
         }
-        else if (moisture >= thresholds.upper_threshold)
+        else
         {
             turn_on = false;
             pumpControl(turn_on);
         }
+
+        if (Connection.connection_status)
+        {
+            state = send_data;
+        }
         else
         {
-            pumpControl(turn_on);
+            state = deep_sleep;
         }
+        break;
+    case send_data:
+        Serial.println("send_data");
+        Connection.sendData(moisture, turn_on);
         state = deep_sleep;
         break;
-
     case deep_sleep:
+        Serial.println("deep_sleep");
+        Serial.printf("\nnumero de falhas: %d", fail_counter);
         if (Connection.connection_status)
         {
             Connection.close();
@@ -204,12 +191,9 @@ void handleStates()
             fail_counter = 0;
             ESP.restart();
         }
-        Camera.powerOff();
-        Serial.println("Going to sleep now");
-        digitalWrite(LED_BUILTIN, HIGH);
-        digitalWrite(PUMP, LOW);
-        esp_deep_sleep_start();
-        Serial.println("This will never be printed");
+
+        systemPowerOff();
+
         break;
 
     default:

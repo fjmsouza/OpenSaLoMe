@@ -5,8 +5,10 @@
 #include <HTTPClient.h>
 #include "esp_camera.h"
 #include "Arduino.h"
+#include "Credentials.h" // comment this line
+// #include "YourCredentials.h"// uncomment this line
+#include "system.h"
 
-extern RTC_DATA_ATTR int fail_counter;
 class ConnectionHandler
 {
 public:
@@ -22,8 +24,6 @@ public:
     int begin;
     const int timeout = 10000; // 10"
     bool connection_status = false;
-    // camera_fb_t *fb = NULL;
-    // camera_fb_t *image = NULL;
     bool setup();
     void sendData(float moisture, bool valve_state);
     String urlencode(String str);

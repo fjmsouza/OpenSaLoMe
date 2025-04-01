@@ -1,7 +1,4 @@
 #include "Connection.h"
-#include "Credentials.h" // comment this line
-
-// #include "YourCredentials.h"// uncomment this line
 
 // Based on:
 // https://iotdesignpro.com/articles/esp32-data-logging-to-google-sheets-with-google-scripts
@@ -10,7 +7,6 @@
 // https://www.niraltek.com/blog/how-to-take-photos-and-upload-it-to-google-drive-using-esp32-cam/
 // https://www.makerhero.com/blog/tire-fotos-com-esp32-cam-e-armazene-no-google-drive/
 
-RTC_DATA_ATTR int fail_counter = 0;
 ConnectionHandler Connection;
 
 bool ConnectionHandler::setup()
@@ -25,7 +21,6 @@ bool ConnectionHandler::setup()
     // reset the esp after 10 seconds
     if ((millis() - begin) > timeout)
     {
-      // ESP.restart();
       fail_counter++;
       return connection_status = false;
     }
@@ -37,35 +32,31 @@ bool ConnectionHandler::setup()
 void ConnectionHandler::sendData(float moisture, bool valve_state)
 {
   Serial.println("Connecting to " + String(host));
-  WiFiClientSecure client;
-  client.setInsecure();
-  if (client.connect(host, httpsPort))
+  String string_humidity = String(moisture, 1);
+  String string_valve_state = "";
+  if (valve_state)
   {
-
-    Serial.println("Connection succeeded!");
-    String string_humidity = String(moisture, 1);
-    String string_valve_state = "";
-    if (valve_state)
-    {
-      string_valve_state = "100";
-    }
-    else
-    {
-      string_valve_state = "0";
-    }
-
-    Serial.println("Sending data to Google Sheets.");
-    String url = "https://script.google.com/macros/s/" + GOOGLE_SHEETS_SCRIPT_ID + "/exec?" + "moisture=" + string_humidity + "&valvestate=" + string_valve_state;
-    Serial.print("requesting URL: ");
-    Serial.println(url);
-
-    client.println(String("GET ") + url + " HTTP/1.1");
-    client.println("Host: " + String(host));
-    client.println("User-Agent: BuildFailureDetectorESP32 ");
-    client.println("Connection: close");
-    client.println();
+    string_valve_state = "100";
   }
-  client.stop();
+  else
+  {
+    string_valve_state = "0";
+  }
+
+  Serial.println("Sending data to Google Sheets.");
+  String url = "https://script.google.com/macros/s/" + GOOGLE_SHEETS_SCRIPT_ID + "/exec?" + "moisture=" + string_humidity + "&valvestate=" + string_valve_state;
+  Serial.print("requesting URL: ");
+  Serial.println(url);
+
+  HTTPClient http;
+  http.begin(url);
+  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+  int httpCode = http.GET();
+  if (httpCode > 0)
+  {
+    Serial.println("Data sent successfully!");
+  }
+  http.end();
 }
 
 void ConnectionHandler::sendImage(float moisture, camera_fb_t *fb)
@@ -81,13 +72,15 @@ void ConnectionHandler::sendImage(float moisture, camera_fb_t *fb)
   bool success = false;
 
   // Verificação básica do JPEG
-  if (fb->len < 64 || fb->buf[0] != 0xFF || fb->buf[1] != 0xD8) {
-    Serial.println("Erro: JPEG inválido ou corrompido!");
+  if (fb->len < 64 || fb->buf[0] != 0xFF || fb->buf[1] != 0xD8)
+  {
+    Serial.println("Error: Invalid or corrupt JPEG!");
     esp_camera_fb_return(fb);
     return;
   }
 
-  while (retryCount < maxRetries && !success) {
+  while (retryCount < maxRetries && !success)
+  {
     WiFiClientSecure client;
     client.setInsecure();
     client.setTimeout(60);
@@ -96,32 +89,38 @@ void ConnectionHandler::sendImage(float moisture, camera_fb_t *fb)
     http.setReuse(true);
     http.setTimeout(60000);
 
-    if (http.begin(client, url)) {
+    if (http.begin(client, url))
+    {
       http.addHeader("Content-Type", "image/jpeg");
-      
+
       // Envia a imagem
       int httpCode = http.POST(fb->buf, fb->len);
 
-      if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_FOUND) {
-        Serial.println("Imagem enviada com sucesso!");
+      if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_FOUND)
+      {
+        Serial.println("Image sent successfully!");
         success = true;
-      } else {
-        Serial.printf("Tentativa %d: HTTP %d - %s\n", retryCount + 1, httpCode, http.errorToString(httpCode).c_str());
+      }
+      else
+      {
+        Serial.printf("Attempt %d: HTTP %d - %s\n", retryCount + 1, httpCode, http.errorToString(httpCode).c_str());
         retryCount++;
         delay(10000 * retryCount);
       }
       http.end();
-    } else {
-      Serial.println("Falha ao iniciar conexão HTTP");
+    }
+    else
+    {
+      Serial.println("Failed to start HTTP connection");
       retryCount++;
     }
     client.stop();
     delay(1000);
   }
 
-  if (!success) {
+  if (!success)
+  {
     Serial.println("Falha crítica: não foi possível enviar após tentativas");
-    // ESP.restart();
     fail_counter++;
   }
   esp_camera_fb_return(fb);
@@ -151,7 +150,8 @@ String ConnectionHandler::receiveData()
   {
     Serial.println("Error on HTTP request");
     http.end();
-    return "0,0";
+    fail_counter++;
+    return "no water";
   }
   //-----------------------------------------------------------------------------------
   // reading data comming from Google Sheet
@@ -166,9 +166,8 @@ String ConnectionHandler::receiveData()
   else
   {
     http.end();
-    // ESP.restart();
     fail_counter++;
-    return "00,00";
+    return "no water";
   }
 }
 

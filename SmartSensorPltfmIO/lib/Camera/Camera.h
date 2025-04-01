@@ -1,8 +1,8 @@
 #pragma once
 
-#include "soc/rtc_cntl_reg.h"
 #include "esp_camera.h"
 #include "Arduino.h"
+#include "system.h"
 
 #define PWDN_GPIO_NUM -1
 #define RESET_GPIO_NUM -1
@@ -20,18 +20,19 @@
 #define VSYNC_GPIO_NUM 38
 #define HREF_GPIO_NUM 47
 #define PCLK_GPIO_NUM 13
-
-// 0-63 lower number means higher quality....I disagree!!!
-// =0 ou 1 fica resetando!2 envia imagem sem a manipulação
-// se não declarar fica resetando tb
 #define JPG_QUALITY 63 // 4, the minimum without resets, while higher better images
+
+extern camera_fb_t *image;
 class CameraHandler
 {
 public:
     camera_fb_t *fb = NULL;
     camera_fb_t *image = NULL;
+    // Defina em um arquivo de configuração (ex: config.h)
+    const bool HIGH_RES = true;
+    const bool LOW_RES = false;
 
-    void setup(bool high_resolution);
+    void setup(bool resolution);
     void reset();
     camera_fb_t *takeDayPicture();
     void powerOff();

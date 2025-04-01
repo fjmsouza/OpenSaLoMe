@@ -5,3 +5,4 @@
 SmartSensor2/Credentials.h
 SmartSensorPltfmIO/lib/Credentials/Credentials.h
 SmartSensorPltfmIO/lib/Credentials/Credentials.h
+SmartSensorPltfmIO/lib/Credentials/Credential.cpp

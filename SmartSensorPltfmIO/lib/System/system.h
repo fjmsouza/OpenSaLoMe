@@ -2,52 +2,51 @@
 
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
+#include "driver/rtc_io.h"  // Add this include for rtc_gpio functions
 #include "Arduino.h"
-#include "Storage.h"
-#include "Camera.h"
-#include "Connection.h"
+#include "esp_camera.h"
 
-// Definições e constantes
-#define DRY 241                   // valor mínimo para solo seco
-#define SOAKED 164                // valor máximo para solo encharcado
-#define uS_TO_S_FACTOR 1000000ULL // conversão de microssegundos para segundos
-#define PUMP_ON_PERIOD 30000       // tempo de acionamento da bomba (ms)
-#define MOISTURE_SENSOR 1         // exemplo de pino do sensor de umidade
-#define PUMP 7                    // GPIO7, GPIO8 não pode, afetado pela placa da câmera
-// Estrutura para os limiares de histerese
-struct Hysteresis
-{
-    int upper_threshold;
-    int lower_threshold;
-};
+// Forward declarations
+class ConnectionHandler;
+class CameraHandler;
 
-// Declaração das variáveis globais
-extern struct Hysteresis thresholds;
-extern String thresholds_string;
-extern int moisture1;
-extern const int SAMPLES_EFFECTIVE_NUMBER;
-extern const int SAMPLES_TOTAL_NUMBER;
+extern RTC_DATA_ATTR int fail_counter;
 
-extern unsigned long sleep_period; // em minutos
-extern unsigned long SLEEP_PERIOD; // em microssegundos
+// // Definições e constantes
+#define DRY 338
+#define SOAKED 128
+#define uS_TO_S_FACTOR 1000000ULL
+#define PUMP_ON_PERIOD 30000
+#define MOISTURE_SENSOR 1
+#define PUMP 7
 
+// Constantes
+constexpr int SAMPLES_EFFECTIVE_NUMBER = 256;
+constexpr int SAMPLES_TOTAL_NUMBER = SAMPLES_EFFECTIVE_NUMBER + 2;
+
+// Declarações "extern" (definições em system.cpp)
+extern String command;
+extern unsigned long sleep_period;
+extern unsigned long sleep_period_aux1;
+extern unsigned long SLEEP_PERIOD;
 extern bool turn_on;
-extern bool flash_on;
+extern int moisture;
 
 enum State
 {
     moisture_read,
+    send_image,
     pump_control,
-    publish_data,
+    send_data,
     deep_sleep
 };
-extern State state;
 
-extern int drop_counter;
-extern camera_fb_t *image;
+extern enum State state;
 
-// Protótipos das funções de apoio:
+// Protótipos das funções
+void setupPinout();
 void pumpControl(bool flag);
 int moistureRead();
-void updateHysteresis();
+void updateCommand();
+void systemPowerOff();
 void handleStates();

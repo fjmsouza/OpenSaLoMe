@@ -1,8 +1,9 @@
 #include "Camera.h"
 
 CameraHandler Camera;
+camera_fb_t *image = nullptr;
 
-void CameraHandler::setup(bool high_resolution)
+void CameraHandler::setup(bool resolution)
 {
   esp_camera_deinit();
 
@@ -29,9 +30,11 @@ void CameraHandler::setup(bool high_resolution)
       .ledc_timer = LEDC_TIMER_0,
       .ledc_channel = LEDC_CHANNEL_0,
 
-      .pixel_format = high_resolution ? PIXFORMAT_JPEG : PIXFORMAT_GRAYSCALE,
-      .frame_size = high_resolution ? FRAMESIZE_WQXGA : FRAMESIZE_96X96, // FRAMESIZE_WQXGA para 5MPixels, FRAMESIZE_SXGA para 2MPixels
-      .jpeg_quality = 12,
+      .pixel_format = resolution ? PIXFORMAT_JPEG : PIXFORMAT_GRAYSCALE,
+      .frame_size = resolution ? FRAMESIZE_WQXGA : FRAMESIZE_96X96, // FRAMESIZE_WQXGA para 5MPixels, FRAMESIZE_SXGA para 2MPixels
+      .jpeg_quality = 10,                                           // 0-63 lower number means higher quality...!!!
+                                                                    // =0 ou 1 fica resetando!2 envia imagem sem a manipulação
+                                                                    // se não declarar fica resetando tb
       .fb_count = 1,
       .fb_location = CAMERA_FB_IN_PSRAM,
       .grab_mode = CAMERA_GRAB_LATEST,
@@ -41,19 +44,27 @@ void CameraHandler::setup(bool high_resolution)
   if (err != ESP_OK)
   {
     Serial.printf("Camera initialization error 0x%x", err);
-    ESP.restart();
+    fail_counter++;
   }
 
   sensor_t *s = esp_camera_sensor_get();
+  s->set_hmirror(s, 1); // 0 = normal, 1 = espelhado
   s->set_special_effect(s, 0);
   s->set_aec2(s, 1);
   s->set_ae_level(s, 0);
-  s->set_agc_gain(s, 15);
+  s->set_agc_gain(s, 30);
   s->set_lenc(s, 0);
   s->set_raw_gma(s, 0);
   s->set_reg(s, 0x3A, 0xFF, 0x04);
 
-  Serial.printf("Camera initialized successfully in %s resolution!\n", high_resolution ? "HIGH" : "LOW");
+  // --------
+  s->set_brightness(s, 0); // -2 to 2
+  s->set_contrast(s, 0);   // -2 to 2
+  // -------sugestões do gpt
+  // s->set_exposure_ctrl(s, 1); // Mantém o controle de exposição ativado
+  // s->set_aec_value(s, 125);   // Diminui o tempo de exposição para evitar ofuscamento (pode variar de 0 a 1200)
+
+  Serial.printf("Camera initialized successfully in %s resolution!\n", resolution ? "HIGH" : "LOW");
 }
 
 void CameraHandler::reset()
@@ -71,23 +82,22 @@ void CameraHandler::reset()
 // brightnessThreshold é o valor médio mínimo (0-255) necessário para considerar a imagem "clara".
 camera_fb_t *CameraHandler::takeDayPicture()
 {
-
+  // 1. Câmera no modo grayscale e resolução baixa para análise rápida da luminosidade.
+  setup(LOW_RES);
   sensor_t *s = esp_camera_sensor_get();
   if (!s)
   {
     Serial.println("Error: sensor not found!");
+    fail_counter++;
     return NULL;
   }
-
-  // 1. Configure a câmera para modo grayscale e resolução baixa para análise rápida da luminosidade.
-  // s->set_framesize(s, FRAMESIZE_96X96);
-  // s->set_pixformat(s, PIXFORMAT_GRAYSCALE);
 
   reset();
   fb = esp_camera_fb_get();
   if (!fb)
   {
     Serial.println("Error capturing frame for brightness check.");
+    fail_counter++;
     return NULL;
   }
 
@@ -102,17 +112,17 @@ camera_fb_t *CameraHandler::takeDayPicture()
   Serial.printf("Average brightness: %.2f\n", avgBrightness);
 
   // Libera o framebuffer usado para análise
-  // esp_camera_fb_return(fb_check);
+  esp_camera_fb_return(fb);
 
   // Se a média estiver abaixo do limiar, retorna NULL (imagem considerada escura)
   if (avgBrightness < brightnessThreshold)
   {
-    Serial.println("Dark image. Discarded.");
+    Serial.println("Dark image discarded!");
     return NULL;
   }
 
-  // 2. Se a luminosidade for suficiente, configure a câmera para alta resolução e JPEG
-  setup(true);
+  // 2. Se a luminosidade for suficiente, configura a câmera para alta resolução e JPEG
+  setup(HIGH_RES);
 
   // Captura a imagem final em JPEG
   reset();
@@ -120,6 +130,7 @@ camera_fb_t *CameraHandler::takeDayPicture()
   if (!fb)
   {
     Serial.println("Error capturing JPEG image.");
+    fail_counter++;
     return NULL;
   }
 
@@ -143,6 +154,9 @@ void CameraHandler::powerOff()
     pinMode(pin, OUTPUT);
     digitalWrite(pin, LOW);
   }
+  pinMode(4, OUTPUT);           // GPIO for LED flash
+  digitalWrite(4, LOW);         // turn OFF flash LED
+  rtc_gpio_hold_en(GPIO_NUM_4); // make sure flash is held LOW in sleep
 
-  Serial.println("Câmera desligada via software!");
+  Serial.println("Camera turned off!");
 }
